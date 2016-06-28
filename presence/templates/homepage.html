@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Presence</title>
+    <link href='https://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #efefef;
+            color: #666;
+            line-height: 24px;
+            padding: 40px 15%;
+        }
+
+        article {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 40px;
+        }
+
+        aside {
+            width: 240px;
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            background-color: #f2f2f2;
+            padding: 0 30px;
+            border-left: 1px solid #ccc;
+            display: none;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        p {
+            color: #333;
+        }
+
+        ul {
+            display: inline;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        li {
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        a.close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 25px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+<article>
+    <h1>{{ title }}</h1>
+
+    <ul id="id_viewers"></ul>
+
+    {% for paragraphs in content %}
+        <p>{{ paragraphs|join:" " }}</p>
+    {% endfor %}
+</article>
+
+<aside>
+    <div>
+        <h4>Comments</h4>
+        <a href="" class="close">&times;</a>
+    </div>
+</aside>
+
+<script type="text/javascript">
+    var socket;
+    var page = "{{ page }}";
+    var user = "{{ request.user.pk }}";
+    // http://codereview.stackexchange.com/a/83718
+    var unique = function (xs) {
+        var seen = {};
+        return xs.filter(function (x) {
+            if (seen[x])
+                return;
+            seen[x] = true;
+            return x
+        })
+    };
+    var renderUser = function (user) {
+        var email_hash = user.split(':');
+        return '<li><a href="" title="' + email_hash[0] + '">' +
+                '<img src="https://www.gravatar.com/avatar/' + email_hash[1] + '?s=32&d=identicon" />' +
+                '</a></li>'
+    };
+
+    window.onload = function () {
+        socket = new WebSocket("ws://" + window.location.host + "/?presence=" + page + "&user=" + user);
+        socket.onmessage = function (e) {
+            var data = JSON.parse(e.data);
+            var users = unique(data[page]);
+            var renderedUsers = users.map(function (user) {
+                return renderUser(user);
+            });
+            document.getElementById('id_viewers').innerHTML = renderedUsers.join('');
+        };
+    };
+
+    window.onbeforeunload = function () {
+        socket.onclose = function () {
+        };
+        socket.send(JSON.stringify({
+            "action": "presence-disconnect",
+            "page": page,
+            "user": "{{ request.user.pk }}"
+        }));
+        socket.close()
+    };
+</script>
+</body>
+</html>
