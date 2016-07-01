@@ -45,7 +45,7 @@ def ws_message(message):
         presence = cache.get(PRESENCE_CACHE_KEY, dict())
         if page in presence:
             presence[page].remove(email_hash)
-        if not presence[page]:
+        if page in presence and not presence[page]:
             del presence[page]
         cache.set(PRESENCE_CACHE_KEY, presence, PRESENCE_CACHE_TIMEOUT)
 
