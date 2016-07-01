@@ -1,6 +1,11 @@
 import random
 import hashlib
+
+import json
 from django.views.generic import TemplateView
+
+from ..whiteboard.models import Message
+
 
 class HomepageView(TemplateView):
     template_name = "homepage.html"
@@ -19,7 +24,14 @@ class HomepageView(TemplateView):
                         for j in range(random.randint(5,10))] \
                             for i in range(5)]
         index = int(page_hash, 16) % (len(titles))
+        messages = Message.objects.select_related('comment__user').filter(page=page_hash)
+        messages = [{'id': m.pk,
+                     'comment': m.comment.comment,
+                     'submit_date': m.comment.submit_date.strftime('%Y-%m-%d'),
+                     'hash': hashlib.md5(m.comment.user.email).hexdigest()} for m in messages]
         context = dict(title=titles[index],
                        content=content,
-                       page=page_hash)
+                       page=page_hash,
+                       comments=json.dumps(messages))
         return context
+

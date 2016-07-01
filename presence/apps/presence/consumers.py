@@ -9,15 +9,15 @@ PRESENCE_CACHE_KEY = 'presence'
 PRESENCE_CACHE_TIMEOUT = 60 * 60 * 24
 
 
-def get_email_hash(user_id):
+def get_email_hash(username):
     User = get_user_model()
-    user = User.objects.only('email').get(pk=user_id)
+    user = User.objects.only('email').get(username=username)
     return u'{}:{}'.format(user.email, hashlib.md5(user.email).hexdigest())
 
 
 def ws_connect(message):
     query = QueryDict(message.content['query_string'])
-    page = query.get('presence')
+    page = query.get('page')
     email_hash = get_email_hash(query.get('user'))
 
     Group("presence").add(message.reply_channel)
