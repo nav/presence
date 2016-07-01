@@ -101,7 +101,7 @@
         },
         componentDidMount: function () {
             window.addEventListener('load', () => {
-                this.socket = new WebSocket("ws://" + window.location.host + "/presence/?page=" + page + "&user=" + user);
+                this.socket = new WebSocket("ws://ws." + window.location.host + "/presence/?page=" + page + "&user=" + user);
                 this.socket.onmessage = this._onMessage;
             });
             window.addEventListener('beforeunload', this._onClose);
