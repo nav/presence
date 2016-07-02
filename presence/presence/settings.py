@@ -140,3 +140,5 @@ CHANNEL_LAYERS = {
         "ROUTING": "presence.routing.channel_routing",
     },
 }
+
+LOGIN_REDIRECT_URL = '/about/'

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block css %}
+    <style>
+        input, button {
+            font-size: 14px;
+        }
+
+        input {
+            padding: 6px;
+        }
+
+        button {
+            padding: 8px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <article>
+        <h1>Login</h1>
+
+        <form action="" method="post">
+
+            {{ form.username }}
+            <button>Login</button>
+            {% csrf_token %}
+        </form>
+    </article>
+
+
+{% endblock %}

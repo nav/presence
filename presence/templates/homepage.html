@@ -1,311 +1,274 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Presence</title>
-    <link href='https://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+{% extends "base.html" %}
+
+{% block css %}
     <style>
-        body {
-            font-family: 'Montserrat', sans-serif;
-            background-color: #efefef;
-            color: #666;
-            line-height: 24px;
-            padding: 40px 15%;
-            min-height: 600px;
-            overflow: hidden;
+        .comments__header {
+            height: 5%;
+            border-bottom: 1px solid #ccc
         }
 
-        article {
-            background: #fff;
-            padding: 40px;
-        }
-
-        aside {
-
-        }
-
-        a {
-            text-decoration: none;
-        }
-
-        p {
-            color: #333;
-        }
-
-        ul {
-            display: inline;
-            list-style: none;
+        .comments__header__title {
             margin: 0;
             padding: 0;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 15px;
+        }
+        
+        .comments__header__close {
+            float: right;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            right: 15px;
+            font-size: 25px;
+            color: #666;
+            z-index: 2;
+        }
+    
+        .comments__footer {
+            width: 340px;
+            height: 10%;
+            margin: 0;
+            font-size: 14px;
+            position: absolute;
+            bottom: 0;
+            border: 0;
+            border-top: 1px solid #ccc
+        }
+        
+        .comments__list {
+            display: block;
+            font-size: 14px;
+            height: 85%;
+            overflow-y: scroll;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        
+        .comments {
+            width: 360px;
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            background-color: #f3f3f3;
+            border-left: 1px solid #ccc;
+            transition: right .3s;
+            transition-timing-function: ease-out;
         }
 
-        li {
-            display: inline-block;
-            margin-right: 10px;
+        .comment {
+            display: block;
+            margin: 20px 0;
         }
 
 
     </style>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react-dom.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/EventEmitter/5.1.0/EventEmitter.min.js"></script>
+{% endblock %}
 
-</head>
-<body>
 
-<article>
-    <h1>{{ title }}</h1>
+{% block content %}
+    <article>
+        <h1>{{ title }}</h1>
 
-    <div id="id_viewers"></div>
+        <div id="id_viewers"></div>
 
-    {% for paragraphs in content %}
-        <p>{{ paragraphs|join:" " }}</p>
-    {% endfor %}
-</article>
+        {% for paragraphs in content %}
+            <p>{{ paragraphs|join:" " }}</p>
+        {% endfor %}
+    </article>
 
-<aside id="id_comments"></aside>
+    <aside id="id_comments"></aside>
+{% endblock %}
 
-<script>
-    var page = "{{ page }}";
-    var user = "{{ request.user.username }}";
-    var comments = {{ comments|safe }};
-    var emitter = new EventEmitter();
-</script>
+{% block javascript %}
+    <script>
+        var page = "{{ page }}";
+        var user = "{{ request.user.username }}";
+        var comments = {{ comments|safe }};
+        var emitter = new EventEmitter();
+    </script>
 
-<script type="text/babel">
-    var Viewer = React.createClass({
-        _openSidebar: function (e) {
-            e.preventDefault();
-            emitter.emit('sidebar', true);
-        },
+    <script type="text/babel">
+        var Viewer = React.createClass({
+            _openSidebar: function (e) {
+                e.preventDefault();
+                emitter.emit('sidebar', true);
+            },
 
-        render: function () {
-            return (
-                    <li>
-                        <a href="" onClick={this._openSidebar} title={this.props.email}>
-                            <img src={'https://www.gravatar.com/avatar/' + this.props.hash + '?s=32&d=identicon'}/>
-                        </a>
-                    </li>
-            )
-        }
-    });
-
-    var Viewers = React.createClass({
-        socket: null,
-        getInitialState: function () {
-            return {
-                viewers: []
+            render: function () {
+                return (
+                        <li>
+                            <a href="" onClick={this._openSidebar} title={this.props.email}>
+                                <img src={'https://www.gravatar.com/avatar/' + this.props.hash + '?s=32&d=identicon'}/>
+                            </a>
+                        </li>
+                )
             }
-        },
-        componentDidMount: function () {
-            window.addEventListener('load', () => {
-                this.socket = new WebSocket("ws://ws." + window.location.host + "/presence/?session_key={{ request.session.session_key }}&page=" + page + "&user=" + user);
-                this.socket.onmessage = this._onMessage;
-            });
-            window.addEventListener('beforeunload', this._onClose);
-        },
-        _unique: function (xs) {
-            var seen = {};
-            return xs.filter(function (x) {
-                if (seen[x])
-                    return;
-                seen[x] = true;
-                return x
-            })
-        },
-        _onMessage: function (e) {
-            var data = JSON.parse(e.data);
-            this.setState({viewers: this._unique(data[page])});
-        },
-        _onClose: function () {
-            this.socket.onclose = function () {
-            };
-            this.socket.send(JSON.stringify({
-                "action": "presence-disconnect",
-                "page": page,
-                "user": user
-            }));
-            this.socket.close()
-        },
-        render: function () {
-            var viewers = this.state.viewers.map(function (viewer) {
-                var email_hash = viewer.split(':');
-                return <Viewer key={email_hash[0]} email={email_hash[0]} hash={email_hash[1]}/>
-            });
-            return <ul>{viewers}</ul>
-        }
-    });
+        });
 
-    ReactDOM.render(
-            <Viewers />,
-            document.getElementById('id_viewers')
-    );
-</script>
-
-<script type="text/babel">
-
-    var CommentsHeader = React.createClass({
-
-        render: function () {
-            return (
-                    <div style={this.props.styles.header}>
-                        <a href="" onClick={this.props.onClose} style={this.props.styles.close}>&times;</a>
-                        <h4 style={this.props.styles.title}>Comments</h4>
-                    </div>
-            )
-        }
-    });
-
-    var CommentsFooter = React.createClass({
-        handleChange: function (e) {
-            var code = (e.keyCode ? e.keyCode : e.which);
-            var comment = e.target.value;
-            if (code == 13) {
-                e.target.value = '';
-                this.props.sendMessage(comment);
+        var Viewers = React.createClass({
+            socket: null,
+            getInitialState: function () {
+                return {
+                    viewers: []
+                }
+            },
+            componentDidMount: function () {
+                window.addEventListener('load', () => {
+                    this.socket = new WebSocket("ws://" + window.location.host + "/presence/?session_key={{ request.session.session_key }}&page=" + page + "&user=" + user);
+                    this.socket.onmessage = this._onMessage;
+                });
+                window.addEventListener('beforeunload', this._onClose);
+            },
+            _unique: function (xs) {
+                var seen = {};
+                return xs.filter(function (x) {
+                    if (seen[x])
+                        return;
+                    seen[x] = true;
+                    return x
+                })
+            },
+            _onMessage: function (e) {
+                var data = JSON.parse(e.data);
+                this.setState({viewers: this._unique(data[page])});
+            },
+            _onClose: function () {
+                this.socket.onclose = function () {
+                };
+                this.socket.send(JSON.stringify({
+                    "action": "presence-disconnect",
+                    "page": page,
+                    "user": user
+                }));
+                this.socket.close()
+            },
+            render: function () {
+                var viewers = this.state.viewers.map(function (viewer) {
+                    var email_hash = viewer.split(':');
+                    return <Viewer key={email_hash[0]} email={email_hash[0]} hash={email_hash[1]}/>
+                });
+                return <ul>{viewers}</ul>
             }
-        },
+        });
 
-        render: function () {
-            return (
-                    <textarea name="comment" style={this.props.styles.footer} onKeyDown={this.handleChange}></textarea>
-            )
-        }
-    });
+        ReactDOM.render(
+                <Viewers />,
+                document.getElementById('id_viewers')
+        );
+    </script>
 
-    var Comment = React.createClass({
-        render: function () {
-            return (
-                    <li style={this.props.styles.comment}>
-                        <img src={'https://www.gravatar.com/avatar/' + this.props.comment.hash + '?s=16&d=identicon'}
-                             style={ {marginRight: 8, marginBottom: -2} }/>
-                        <span>{this.props.comment.comment}</span>
-                    </li>
-            )
-        }
-    });
+    <script type="text/babel">
 
-    var Comments = React.createClass({
+        var CommentsHeader = React.createClass({
 
-        socket: null,
-
-        styles: {
-            header: {
-                height: '5%',
-                borderBottom: "1px solid #ccc"
-            },
-            title: {
-                margin: 0,
-                padding: 0,
-                position: 'relative',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                left: 15
-            },
-            close: {
-                float: 'right',
-                position: 'relative',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                right: 15,
-                fontSize: 25,
-                color: "#666",
-                zIndex: 2
-            },
-            footer: {
-                width: 340,
-                height: '10%',
-                margin: 0,
-                fontSize: 14,
-                position: 'absolute',
-                bottom: 0,
-                border: 0,
-                borderTop: '1px solid #ccc'
-            },
-            list: {
-                display: 'block',
-                fontSize: 14,
-                height: '85%',
-                overflowY: 'scroll',
-                paddingLeft: 20,
-                paddingRight: 20
-
-            },
-            comment: {
-                display: 'block',
-                marginTop: 20,
-                marginBottom: 20
-            },
-            comments: {
-                width: 360,
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                height: '100%',
-                backgroundColor: '#f3f3f3',
-                borderLeft: '1px solid #ccc'
+            render: function () {
+                return (
+                        <div className="comments__header">
+                            <a href="" onClick={this.props.onClose} className="comments__header__close">&times;</a>
+                            <h4 className="comments__header__title">Comments</h4>
+                        </div>
+                )
             }
-        },
-        getInitialState: function () {
-            return {
-                open: false,
-                comments: comments || []
+        });
+
+        var CommentsFooter = React.createClass({
+            handleChange: function (e) {
+                var code = (e.keyCode ? e.keyCode : e.which);
+                var comment = e.target.value;
+                if (code == 13) {
+                    e.target.value = '';
+                    this.props.sendMessage(comment);
+                }
+            },
+
+            render: function () {
+                return (
+                        <textarea name="comment" onKeyDown={this.handleChange} className="comments__footer"></textarea>
+                )
             }
-        },
-        componentDidMount: function () {
-            window.addEventListener('load', () => {
-                this.socket = new WebSocket("ws://ws." + window.location.host + "/whiteboard/?session_key={{ request.session.session_key }}&page=" + page + "&user=" + user);
-                this.socket.onmessage = this.receiveMessage;
-            });
-            this._scroll();
-            emitter.addListener('sidebar', (state) => { this.setState({open: state}) });
-        },
-        receiveMessage: function (e) {
-            var data = JSON.parse(e.data);
-            if (data.page !== page) return;
-            var comments = this.state.comments;
-            comments.push(data);
-            this.setState({comments: comments});
-            this._scroll();
-        },
-        sendMessage: function (message) {
-            this.socket.send(JSON.stringify({
-                "page": page,
-                "user": user,
-                "comment": message
-            }));
-        },
-        _closeSidebar: function (e) {
-            e.preventDefault();
-            this.setState({open: false});
-        },
-        _scroll: function () {
-            var comments_list = document.getElementsByClassName('comments__list')[0];
-            comments_list.scrollTop = comments_list.scrollHeight;
-        },
-        render: function () {
-            var comments = this.state.comments.map((comment) => {
-                return <Comment key={comment.id} comment={comment} styles={this.styles}/>
-            });
+        });
 
-            var display = (this.state.open) ? 'block': 'none';
+        var Comment = React.createClass({
+            render: function () {
+                return (
+                        <li className="comment">
+                            <img src={'https://www.gravatar.com/avatar/' + this.props.comment.hash + '?s=16&d=identicon'}
+                                 style={ {marginRight: 8, marginBottom: -2} }/>
+                            <span>{this.props.comment.comment}</span>
+                        </li>
+                )
+            }
+        });
 
-            return (
-                    <div style={ {...this.styles.comments, ...{display: display} }}>
-                        <CommentsHeader styles={this.styles} onClose={this._closeSidebar}/>
-                        <ul style={this.styles.list} className="comments__list">{comments}</ul>
-                        <CommentsFooter styles={this.styles} sendMessage={this.sendMessage}/>
-                    </div>
-            );
-        }
-    });
+        var Comments = React.createClass({
 
-    ReactDOM.render(
-            <Comments />,
-            document.getElementById('id_comments')
-    );
-</script>
-</body>
-</html>
+            socket: null,
+
+            getInitialState: function () {
+                return {
+                    open: false,
+                    comments: comments || []
+                }
+            },
+            componentDidMount: function () {
+                window.addEventListener('load', () => {
+                    this.socket = new WebSocket("ws://" + window.location.host + "/whiteboard/?session_key={{ request.session.session_key }}&page=" + page + "&user=" + user);
+                    this.socket.onmessage = this.receiveMessage;
+                });
+                this._scroll();
+                emitter.addListener('sidebar', (state) => { this.setState({open: state}) });
+            },
+            receiveMessage: function (e) {
+                var data = JSON.parse(e.data);
+                if (data.page !== page) return;
+                var comments = this.state.comments;
+                comments.push(data);
+                this.setState({comments: comments});
+                this._scroll();
+            },
+            sendMessage: function (message) {
+                this.socket.send(JSON.stringify({
+                    "page": page,
+                    "user": user,
+                    "comment": message
+                }));
+            },
+            _closeSidebar: function (e) {
+                e.preventDefault();
+                this.setState({open: false});
+            },
+            _scroll: function () {
+                var comments_list = document.getElementsByClassName('comments__list')[0];
+                comments_list.scrollTop = comments_list.scrollHeight;
+            },
+            render: function () {
+                var comments = this.state.comments.map((comment) => {
+                    return <Comment key={comment.id} comment={comment}/>
+                });
+
+                var display = (this.state.open) ? 0: -361;
+
+                return (
+                        <div style={ {right: display} } className="comments">
+                            <CommentsHeader onClose={this._closeSidebar}/>
+                            <ul className="comments__list">{comments}</ul>
+                            <CommentsFooter sendMessage={this.sendMessage}/>
+                        </div>
+                );
+            }
+        });
+
+        ReactDOM.render(
+                <Comments />,
+                document.getElementById('id_comments')
+        );
+    </script>
+{% endblock %}

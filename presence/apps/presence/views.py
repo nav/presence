@@ -3,11 +3,11 @@ import hashlib
 
 import json
 from django.views.generic import TemplateView
-
+from django.contrib.auth.mixins import LoginRequiredMixin
 from ..whiteboard.models import Message
 
 
-class HomepageView(TemplateView):
+class HomepageView(LoginRequiredMixin, TemplateView):
     template_name = "homepage.html"
 
     def get_context_data(self, *args, **kwargs):
